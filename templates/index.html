@@ -4,13 +4,7 @@
 {% block content %}
 <h1>Your Word Lists</h1>
 
-<article style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem;">
-    <div>
-        <strong>Your Zipf Threshold:</strong> {{ "%.2f" | format(profile.zipf_threshold) }}
-        <br><small>Words at or below this rarity level are included in quizzes. Updates as you quiz.</small>
-    </div>
-    <a href="{{ url_for('calibrate') }}" role="button" class="outline secondary" style="white-space: nowrap;">Re-calibrate</a>
-</article>
+<p>Upload a chapter or passage you're about to read and we'll extract the difficult vocabulary from it. Master the hard words first, so when you read the actual text, nothing slows you down. No multiple choice — you define each word from scratch, then get graded by AI using criteria from the <a href="https://en.wikipedia.org/wiki/Wechsler_Adult_Intelligence_Scale" target="_blank">WAIS</a>, the gold-standard IQ test. The app calibrates to your level for each document, zeroing in on words you don't yet know. Even if you have no idea, guess anyway — the attempt primes your memory and makes the correct definition stick better when you see it (a concept known as <a href="https://lse.ethz.ch/research/productive-failure.html" target="_blank">productive failure</a>, pioneered by ETH Zurich professor Manu Kapur).</p>
 
 <a href="{{ url_for('upload') }}" role="button">Upload a PDF</a>
 
@@ -43,7 +37,9 @@
                 {{ s.pct }}%
             </td>
             <td>
-                {% if s.list.status == 'done' and s.in_range > 0 %}
+                {% if s.list.status == 'done' and s.list.zipf_threshold is none %}
+                <a href="{{ url_for('calibrate', list_id=s.list.id) }}" role="button" class="outline">Calibrate</a>
+                {% elif s.list.status == 'done' and s.in_range > 0 %}
                 <a href="{{ url_for('quiz', list_id=s.list.id) }}" role="button" class="outline">Quiz</a>
                 {% endif %}
                 <form method="post" action="{{ url_for('delete_word_list', list_id=s.list.id) }}" style="display:inline">

@@ -23,7 +23,18 @@
 </div>
 
 <a href="{{ url_for('quiz', list_id=word_list.id) }}" role="button">Start Quiz</a>
+<a href="{{ url_for('calibrate', list_id=word_list.id) }}" role="button" class="outline">Re-calibrate</a>
 <a href="{{ url_for('index') }}" role="button" class="outline">Back to Dashboard</a>
+
+{% if threshold is not none %}
+<details style="margin-top: 0.5rem;">
+    <summary><small>Threshold: {{ "%.2f" | format(threshold) }} — adjust</small></summary>
+    <form method="post" action="{{ url_for('set_threshold', list_id=word_list.id) }}" role="group" style="margin-top: 0.5rem; max-width: 200px;">
+        <input type="number" name="threshold" step="0.1" min="0.5" max="7.0" value="{{ '%.1f' | format(threshold) }}" required>
+        <button type="submit" class="outline">Set</button>
+    </form>
+</details>
+{% endif %}
 
 <table>
     <thead>
