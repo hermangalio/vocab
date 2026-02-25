@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Upload PDF{% endblock %}
+
+{% block content %}
+<h1>Upload a PDF</h1>
+<p>Extract rare vocabulary from any PDF document.</p>
+
+<form method="post" enctype="multipart/form-data">
+    <label for="pdf">PDF File</label>
+    <input type="file" id="pdf" name="pdf" accept=".pdf" required>
+
+    <fieldset>
+        <legend>Page Range (optional)</legend>
+        <div class="grid">
+            <label>
+                Start Page
+                <input type="number" name="start_page" min="1" placeholder="Leave blank for full book">
+            </label>
+            <label>
+                End Page
+                <input type="number" name="end_page" min="1" placeholder="Leave blank for full book">
+            </label>
+        </div>
+    </fieldset>
+
+    <button type="submit">Extract Vocabulary</button>
+</form>
+{% endblock %}

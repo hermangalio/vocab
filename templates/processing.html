@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Processing...{% endblock %}
+
+{% block content %}
+<article style="text-align: center; padding: 3rem;">
+    <div class="spinner"></div>
+    <h2>Extracting Vocabulary</h2>
+    <p>Processing <strong>{{ word_list.name }}</strong>...</p>
+    <p><small>This may take a minute. The page will redirect automatically when done.</small></p>
+</article>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const listId = {{ word_list.id }};
+
+    async function checkStatus() {
+        try {
+            const res = await fetch(`/status/${listId}`);
+            const data = await res.json();
+            if (data.status === 'done') {
+                window.location.href = `/words/${listId}`;
+            } else if (data.status === 'error') {
+                window.location.href = '/';
+            }
+        } catch (e) {
+            // ignore fetch errors, retry
+        }
+    }
+
+    setInterval(checkStatus, 2000);
+</script>
+{% endblock %}

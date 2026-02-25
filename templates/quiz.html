@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}Quiz — {{ word_list.name }}{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Vocabulary Quiz</h1>
+    <p>{{ word_list.name }}</p>
+</hgroup>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="number" id="session-score">0</span>
+        <span class="label">Session Score</span>
+    </div>
+    <div class="stat-card">
+        <span class="number" id="remaining">{{ total - mastered }}</span>
+        <span class="label">Remaining</span>
+    </div>
+    <div class="stat-card">
+        <span class="number" id="mastered-count">{{ mastered }}</span>
+        <span class="label">Mastered</span>
+    </div>
+    <div class="stat-card">
+        <span class="number" id="threshold-display">{{ "%.2f" | format(threshold) }}</span>
+        <span class="label">Zipf Threshold</span>
+    </div>
+</div>
+
+<div id="quiz-area">
+    <!-- Word prompt -->
+    <div id="word-prompt" style="display:none;">
+        <h2>What does <mark id="current-word"></mark> mean?</h2>
+        <form id="answer-form">
+            <input type="text" id="definition-input" placeholder="Type your definition..." autocomplete="off" required>
+            <button type="submit" id="submit-btn">Submit</button>
+        </form>
+    </div>
+
+    <!-- Query prompt (WAIS-5 rule) -->
+    <div id="query-prompt" style="display:none;">
+        <article>
+            <p><strong>Partial answer.</strong> Tell me more about <mark id="query-word"></mark>.</p>
+            <p style="color: var(--pico-muted-color); font-size: 0.9rem;">You said: "<span id="query-original"></span>"</p>
+            <form id="query-form">
+                <input type="text" id="query-input" placeholder="Elaborate on your definition..." autocomplete="off" required>
+                <button type="submit">Submit Elaboration</button>
+            </form>
+        </article>
+    </div>
+
+    <!-- Result card -->
+    <div id="result-card" style="display:none;">
+        <article>
+            <header>
+                <span id="result-score" style="font-size:1.5rem; font-weight:bold;"></span>
+                <span id="mastery-badge" style="display:none; margin-left:0.5rem;">Mastered!</span>
+            </header>
+            <p><strong>Examiner Notes:</strong> <span id="result-reason"></span></p>
+            <p><strong>Official Definition:</strong> <span id="result-definition"></span></p>
+            <p><strong>Synonyms:</strong> <span id="result-synonyms"></span></p>
+            <p><strong>Kafkaesque Example:</strong> <em id="result-example"></em></p>
+            <footer>
+                <button id="next-btn">Next Word</button>
+            </footer>
+        </article>
+    </div>
+
+    <!-- API error -->
+    <div id="api-error" style="display:none;">
+        <article style="text-align:center;">
+            <h2>API Quota Exhausted</h2>
+            <p>Herman's API ran out — go complain to him.</p>
+            <button id="retry-btn">Retry</button>
+        </article>
+    </div>
+
+    <!-- All done -->
+    <div id="all-done" style="display:none;">
+        <article style="text-align:center;">
+            <h2>All words mastered!</h2>
+            <p>You've scored a 2 on every word in this list.</p>
+            <a href="{{ url_for('index') }}" role="button">Back to Dashboard</a>
+        </article>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" style="display:none; text-align:center; padding:2rem;">
+        <div class="spinner"></div>
+        <p>Thinking...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const listId = {{ word_list.id }};
+    let currentWordId = null;
+    let currentWord = '';
+    let originalDefinition = '';
+    let sessionScore = 0;
+    let sessionMax = 0;
+
+    const wordPrompt = document.getElementById('word-prompt');
+    const queryPrompt = document.getElementById('query-prompt');
+    const resultCard = document.getElementById('result-card');
+    const apiError = document.getElementById('api-error');
+    const allDone = document.getElementById('all-done');
+    const loading = document.getElementById('loading');
+
+    function hideAll() {
+        wordPrompt.style.display = 'none';
+        queryPrompt.style.display = 'none';
+        resultCard.style.display = 'none';
+        apiError.style.display = 'none';
+        allDone.style.display = 'none';
+        loading.style.display = 'none';
+    }
+
+    async function loadNextWord() {
+        hideAll();
+        loading.style.display = 'block';
+
+        const res = await fetch(`/quiz/${listId}/next`);
+        const data = await res.json();
+
+        hideAll();
+
+        if (data.done) {
+            allDone.style.display = 'block';
+            return;
+        }
+
+        currentWordId = data.word_id;
+        currentWord = data.word;
+        document.getElementById('current-word').textContent = data.word.toUpperCase();
+        document.getElementById('remaining').textContent = data.remaining;
+        document.getElementById('definition-input').value = '';
+        wordPrompt.style.display = 'block';
+        document.getElementById('definition-input').focus();
+    }
+
+    function showResult(data) {
+        hideAll();
+
+        const scoreText = data.score === 2 ? '2/2' : data.score === 1 ? '1/2' : '0/2';
+        const scoreEmoji = data.score === 2 ? '✅' : data.score === 1 ? '🟠' : '❌';
+
+        document.getElementById('result-score').textContent = `${scoreEmoji} Score: ${scoreText}`;
+        document.getElementById('result-score').className = `score-${data.score}`;
+        document.getElementById('result-reason').textContent = data.reason;
+        document.getElementById('result-definition').textContent = data.definition;
+        document.getElementById('result-synonyms').textContent = data.synonyms;
+        document.getElementById('result-example').textContent = data.example;
+
+        const badge = document.getElementById('mastery-badge');
+        if (data.mastered) {
+            badge.style.display = 'inline';
+            const mc = document.getElementById('mastered-count');
+            mc.textContent = parseInt(mc.textContent) + 1;
+            const rem = document.getElementById('remaining');
+            rem.textContent = parseInt(rem.textContent) - 1;
+        } else {
+            badge.style.display = 'none';
+        }
+
+        sessionScore += data.score;
+        sessionMax += 2;
+        document.getElementById('session-score').textContent = `${sessionScore}/${sessionMax}`;
+
+        if (data.threshold !== undefined) {
+            document.getElementById('threshold-display').textContent = data.threshold.toFixed(2);
+        }
+
+        resultCard.style.display = 'block';
+    }
+
+    // Submit definition
+    document.getElementById('answer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const def = document.getElementById('definition-input').value.trim();
+        if (!def) return;
+
+        originalDefinition = def;
+        hideAll();
+        loading.style.display = 'block';
+
+        const res = await fetch(`/quiz/${listId}/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word_id: currentWordId, definition: def }),
+        });
+        const data = await res.json();
+
+        if (data.api_error) {
+            hideAll();
+            apiError.style.display = 'block';
+        } else if (data.needs_query) {
+            hideAll();
+            document.getElementById('query-word').textContent = currentWord.toUpperCase();
+            document.getElementById('query-original').textContent = originalDefinition;
+            document.getElementById('query-input').value = '';
+            queryPrompt.style.display = 'block';
+            document.getElementById('query-input').focus();
+        } else {
+            showResult(data);
+        }
+    });
+
+    // Submit elaboration (query rule)
+    document.getElementById('query-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const elab = document.getElementById('query-input').value.trim();
+        if (!elab) return;
+
+        hideAll();
+        loading.style.display = 'block';
+
+        const res = await fetch(`/quiz/${listId}/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                word_id: currentWordId,
+                original_definition: originalDefinition,
+                elaboration: elab,
+            }),
+        });
+        const data = await res.json();
+        if (data.api_error) {
+            hideAll();
+            apiError.style.display = 'block';
+        } else {
+            showResult(data);
+        }
+    });
+
+    // Next word
+    document.getElementById('next-btn').addEventListener('click', loadNextWord);
+
+    // Retry after API error — re-show the word prompt with the same word
+    document.getElementById('retry-btn').addEventListener('click', () => {
+        hideAll();
+        document.getElementById('definition-input').value = originalDefinition;
+        wordPrompt.style.display = 'block';
+        document.getElementById('definition-input').focus();
+    });
+
+    // Enter key advances to next word when result card is showing
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && resultCard.style.display !== 'none') {
+            e.preventDefault();
+            loadNextWord();
+        }
+    });
+
+    // Start
+    loadNextWord();
+</script>
+{% endblock %}

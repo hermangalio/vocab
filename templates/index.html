@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Vocab App — Dashboard{% endblock %}
+
+{% block content %}
+<h1>Your Word Lists</h1>
+
+<article style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem;">
+    <div>
+        <strong>Your Zipf Threshold:</strong> {{ "%.2f" | format(profile.zipf_threshold) }}
+        <br><small>Words at or below this rarity level are included in quizzes. Updates as you quiz.</small>
+    </div>
+    <a href="{{ url_for('calibrate') }}" role="button" class="outline secondary" style="white-space: nowrap;">Re-calibrate</a>
+</article>
+
+<a href="{{ url_for('upload') }}" role="button">Upload a PDF</a>
+
+{% if stats %}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>In Range</th>
+            <th>Mastered</th>
+            <th>Progress</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in stats %}
+        <tr>
+            <td>
+                <a href="{{ url_for('word_list', list_id=s.list.id) }}">{{ s.list.name }}</a>
+                {% if s.list.status == 'processing' %}
+                <small>(processing...)</small>
+                {% elif s.list.status == 'error' %}
+                <small>(error)</small>
+                {% endif %}
+            </td>
+            <td>{{ s.in_range }} <small>/ {{ s.total }}</small></td>
+            <td>{{ s.mastered }}</td>
+            <td>
+                <progress value="{{ s.mastered }}" max="{{ s.in_range }}"></progress>
+                {{ s.pct }}%
+            </td>
+            <td>
+                {% if s.list.status == 'done' and s.in_range > 0 %}
+                <a href="{{ url_for('quiz', list_id=s.list.id) }}" role="button" class="outline">Quiz</a>
+                {% endif %}
+                <form method="post" action="{{ url_for('delete_word_list', list_id=s.list.id) }}" style="display:inline">
+                    <button type="submit" class="outline secondary" onclick="return confirm('Delete this word list?')">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No word lists yet. Upload a PDF to get started!</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Calibrate Your Vocabulary{% endblock %}
+
+{% block content %}
+<div id="calibration-area" style="max-width: 550px; margin: 0 auto; text-align: center;">
+
+    <!-- Intro -->
+    <div id="intro">
+        <h1>Vocabulary Calibration</h1>
+        <p>We'll show you 15 words from common to rare. For each one, tell us if you <strong>confidently know what it means</strong>.</p>
+        <p>This helps us figure out which words to quiz you on.</p>
+        <button id="start-btn">Start</button>
+    </div>
+
+    <!-- Word card -->
+    <div id="word-card" style="display:none;">
+        <p><small id="progress"></small></p>
+        <progress id="progress-bar" value="0" max="15" style="width:100%;"></progress>
+        <h2 style="margin: 2rem 0;"><mark id="cal-word"></mark></h2>
+        <p>Do you know what this word means?</p>
+        <div class="grid">
+            <button id="yes-btn" class="outline">Yes, I know it</button>
+            <button id="no-btn" class="outline secondary">No / Not sure</button>
+        </div>
+    </div>
+
+    <!-- Result -->
+    <div id="result" style="display:none;">
+        <h2>Calibration Complete</h2>
+
+        <!-- Bell curve -->
+        <div id="bell-curve-container" style="margin: 1.5rem 0;">
+            <svg id="bell-svg" viewBox="0 0 500 220" style="width:100%; max-width:500px;">
+                <!-- Bell curve fill -->
+                <path id="bell-fill" fill="rgba(99,102,241,0.15)" stroke="none"/>
+                <!-- Bell curve line -->
+                <path id="bell-line" fill="none" stroke="rgb(99,102,241)" stroke-width="2.5"/>
+                <!-- User marker line -->
+                <line id="marker-line" stroke="rgb(220,38,38)" stroke-width="2" stroke-dasharray="4,3"/>
+                <!-- User marker dot -->
+                <circle id="marker-dot" r="6" fill="rgb(220,38,38)"/>
+                <!-- "You" label -->
+                <text id="marker-label" text-anchor="middle" font-size="13" font-weight="bold" fill="rgb(220,38,38)">You</text>
+                <!-- Percentile label -->
+                <text id="percentile-label" text-anchor="middle" font-size="12" fill="#666"></text>
+                <!-- Axis labels -->
+                <text x="30" y="210" font-size="11" fill="#999">Lower</text>
+                <text x="440" y="210" font-size="11" fill="#999">Higher</text>
+                <text x="250" y="210" font-size="11" fill="#999" text-anchor="middle">Vocabulary Level</text>
+            </svg>
+        </div>
+
+        <p style="font-size: 1.3rem;">
+            You scored in approximately the <strong>top <span id="top-pct"></span>%</strong> of the population.
+        </p>
+        <p>
+            Zipf threshold: <strong><span id="threshold-val"></span></strong>
+        </p>
+        <p><small>Words at or below this rarity level are included in your quizzes. The threshold adjusts as you quiz.</small></p>
+
+        <details style="text-align: left; margin-top: 1rem;">
+            <summary><small>How is this estimated?</small></summary>
+            <small>
+                <p>We used the top 80,000 English words from the <a href="https://doi.org/10.3758/s13428-013-0403-5" target="_blank">wordfreq</a> library to count how many words exist at each Zipf frequency level. Then we anchored those counts against real vocabulary size data from <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4965448/" target="_blank">Brysbaert et al. (2016)</a>, which tested vocabulary in a large sample of native English speakers:</p>
+                <ul>
+                    <li><strong>5th percentile:</strong> 27,100 lemmas &rarr; Zipf boundary &asymp; 3.05</li>
+                    <li><strong>50th percentile:</strong> 42,000 lemmas &rarr; Zipf boundary &asymp; 2.69</li>
+                    <li><strong>95th percentile:</strong> 51,700 lemmas &rarr; Zipf boundary &asymp; 2.52</li>
+                </ul>
+                <p>Your calibration determines where your word-knowledge boundary falls on the Zipf scale, and we map that to the percentile range above. Points between and beyond the three empirical anchors are interpolated/extrapolated. This is still an approximation &mdash; a 15-question yes/no quiz can't precisely measure a vocabulary spanning tens of thousands of words.</p>
+            </small>
+        </details>
+
+        <a href="{{ url_for('index') }}" role="button" style="margin-top: 1rem;">Go to Dashboard</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const words = {{ words | tojson }};
+    let current = 0;
+    const answers = [];
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('intro').style.display = 'none';
+        document.getElementById('word-card').style.display = 'block';
+        showWord();
+    });
+
+    function showWord() {
+        document.getElementById('cal-word').textContent = words[current].word.toUpperCase();
+        document.getElementById('progress').textContent = `Word ${current + 1} of ${words.length}`;
+        document.getElementById('progress-bar').value = current;
+    }
+
+    function answer(known) {
+        answers.push(known);
+        current++;
+        if (current < words.length) {
+            showWord();
+        } else {
+            document.getElementById('progress-bar').value = words.length;
+            submitCalibration();
+        }
+    }
+
+    document.getElementById('yes-btn').addEventListener('click', () => answer(true));
+    document.getElementById('no-btn').addEventListener('click', () => answer(false));
+
+    // Gaussian function for the bell curve
+    function gaussian(x, mean, std) {
+        return Math.exp(-0.5 * Math.pow((x - mean) / std, 2));
+    }
+
+    function drawBellCurve(percentile) {
+        const svgW = 500, chartH = 160, padL = 20, padR = 20, padTop = 15;
+        const chartW = svgW - padL - padR;
+        const mean = 0, std = 1;
+
+        // Build curve points from -3.2 to 3.2 std devs
+        const steps = 100;
+        const points = [];
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const z = -3.2 + t * 6.4;
+            const y = gaussian(z, mean, std);
+            const px = padL + t * chartW;
+            const py = padTop + chartH - y * chartH;
+            points.push({ px, py });
+        }
+
+        // Build SVG path
+        const linePath = points.map((p, i) => (i === 0 ? `M${p.px},${p.py}` : `L${p.px},${p.py}`)).join(' ');
+        const fillPath = linePath + ` L${padL + chartW},${padTop + chartH} L${padL},${padTop + chartH} Z`;
+
+        document.getElementById('bell-line').setAttribute('d', linePath);
+        document.getElementById('bell-fill').setAttribute('d', fillPath);
+
+        // Map percentile to x position (percentile → z-score → pixel)
+        // Approximate inverse normal: use a simple lookup
+        const pctToZ = (p) => {
+            // Rational approximation of inverse normal CDF
+            if (p <= 0) return -3.2;
+            if (p >= 100) return 3.2;
+            const p0 = p / 100;
+            const a = p0 < 0.5 ? p0 : 1 - p0;
+            const t = Math.sqrt(-2 * Math.log(a));
+            const c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+            const d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+            let z = t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t);
+            if (p0 < 0.5) z = -z;
+            return z;
+        };
+
+        const userZ = pctToZ(percentile);
+        const userT = (userZ + 3.2) / 6.4;
+        const userX = padL + userT * chartW;
+        const userY = padTop + chartH - gaussian(userZ, mean, std) * chartH;
+
+        // Position marker
+        document.getElementById('marker-line').setAttribute('x1', userX);
+        document.getElementById('marker-line').setAttribute('x2', userX);
+        document.getElementById('marker-line').setAttribute('y1', userY);
+        document.getElementById('marker-line').setAttribute('y2', padTop + chartH);
+
+        document.getElementById('marker-dot').setAttribute('cx', userX);
+        document.getElementById('marker-dot').setAttribute('cy', userY);
+
+        document.getElementById('marker-label').setAttribute('x', userX);
+        document.getElementById('marker-label').setAttribute('y', userY - 14);
+
+        document.getElementById('percentile-label').setAttribute('x', userX);
+        document.getElementById('percentile-label').setAttribute('y', padTop + chartH + 16);
+        document.getElementById('percentile-label').textContent = `${Math.round(percentile)}th percentile`;
+    }
+
+    async function submitCalibration() {
+        document.getElementById('word-card').style.display = 'none';
+
+        const res = await fetch('/calibrate/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers }),
+        });
+        const data = await res.json();
+
+        document.getElementById('threshold-val').textContent = data.threshold.toFixed(2);
+        document.getElementById('top-pct').textContent = Math.round(100 - data.percentile);
+        drawBellCurve(data.percentile);
+        document.getElementById('result').style.display = 'block';
+    }
+</script>
+{% endblock %}

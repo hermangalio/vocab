@@ -1,0 +1,10 @@
+flask
+flask-sqlalchemy
+flask-limiter
+python-dotenv
+PyPDF2
+spacy
+wordfreq
+pyspellchecker
+google-genai
+gunicorn

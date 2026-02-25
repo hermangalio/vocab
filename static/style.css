@@ -1,0 +1,88 @@
+/* Flash messages */
+.flash-error {
+    background-color: var(--pico-del-color);
+    padding: 1rem;
+    border-radius: var(--pico-border-radius);
+    margin-bottom: 1rem;
+}
+
+.flash-success {
+    background-color: var(--pico-ins-color);
+    padding: 1rem;
+    border-radius: var(--pico-border-radius);
+    margin-bottom: 1rem;
+}
+
+/* Quiz page */
+#quiz-area {
+    max-width: none;
+}
+
+#result-card {
+    display: none;
+}
+
+#result-card.visible {
+    display: block;
+}
+
+#result-card article {
+    overflow: visible;
+    max-height: none;
+}
+
+/* Ensure page content isn't clipped at the bottom */
+main.container {
+    padding-bottom: 3rem;
+}
+
+.score-2 { color: green; }
+.score-1 { color: orange; }
+.score-0 { color: red; }
+
+/* Word list table */
+.mastered {
+    opacity: 0.5;
+}
+
+/* Stats grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 1rem;
+    background: var(--pico-card-background-color);
+    border-radius: var(--pico-border-radius);
+    border: 1px solid var(--pico-muted-border-color);
+}
+
+.stat-card .number {
+    font-size: 2rem;
+    font-weight: bold;
+    display: block;
+}
+
+.stat-card .label {
+    font-size: 0.85rem;
+    color: var(--pico-muted-color);
+}
+
+/* Processing spinner */
+.spinner {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid var(--pico-muted-border-color);
+    border-top-color: var(--pico-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ word_list.name }}{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>{{ word_list.name }}</h1>
+    <p>{{ words | length }} words, sorted by rarity (rarest first)</p>
+</hgroup>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="number">{{ words | length }}</span>
+        <span class="label">Total Words</span>
+    </div>
+    <div class="stat-card">
+        <span class="number">{{ words | selectattr('mastered') | list | length }}</span>
+        <span class="label">Mastered</span>
+    </div>
+    <div class="stat-card">
+        <span class="number">{{ words | rejectattr('mastered') | list | length }}</span>
+        <span class="label">Remaining</span>
+    </div>
+</div>
+
+<a href="{{ url_for('quiz', list_id=word_list.id) }}" role="button">Start Quiz</a>
+<a href="{{ url_for('index') }}" role="button" class="outline">Back to Dashboard</a>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Word</th>
+            <th>Zipf Score</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for word in words %}
+        <tr class="{{ 'mastered' if word.mastered }}">
+            <td>{{ loop.index }}</td>
+            <td>{{ word.word }}</td>
+            <td>{{ "%.2f" | format(word.zipf_score) }}</td>
+            <td>{{ "Mastered" if word.mastered else "" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
