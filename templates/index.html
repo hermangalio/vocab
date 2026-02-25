@@ -36,14 +36,14 @@
                 <progress value="{{ s.mastered }}" max="{{ s.in_range }}"></progress>
                 {{ s.pct }}%
             </td>
-            <td>
+            <td style="display:flex; gap:0.5rem; align-items:center;">
                 {% if s.list.status == 'done' and s.list.zipf_threshold is none %}
-                <a href="{{ url_for('calibrate', list_id=s.list.id) }}" role="button" class="outline">Calibrate</a>
+                <a href="{{ url_for('calibrate', list_id=s.list.id) }}" role="button" class="outline" style="width:auto; margin:0;">Calibrate</a>
                 {% elif s.list.status == 'done' and s.in_range > 0 %}
-                <a href="{{ url_for('quiz', list_id=s.list.id) }}" role="button" class="outline">Quiz</a>
+                <a href="{{ url_for('quiz', list_id=s.list.id) }}" role="button" class="outline" style="width:auto; margin:0;">Quiz</a>
                 {% endif %}
-                <form method="post" action="{{ url_for('delete_word_list', list_id=s.list.id) }}" style="display:inline">
-                    <button type="submit" class="outline secondary" onclick="return confirm('Delete this word list?')">Delete</button>
+                <form method="post" action="{{ url_for('delete_word_list', list_id=s.list.id) }}" style="margin:0;">
+                    <button type="submit" class="outline secondary" style="width:auto; margin:0;" onclick="return confirm('Delete this word list?')">Delete</button>
                 </form>
             </td>
         </tr>

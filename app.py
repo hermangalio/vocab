@@ -26,7 +26,7 @@ def force_https():
 # Access code — set via env var, disabled if not set
 ACCESS_CODE = os.environ.get('ACCESS_CODE')
 
-DEPLOY_TIME = datetime.now(timezone.utc).strftime('%b %d %H:%M UTC')
+DEPLOY_TIME = datetime.now(timezone(timedelta(hours=2))).strftime('%b %d %H:%M GMT+2')
 
 db.init_app(app)
 
@@ -48,6 +48,10 @@ with app.app_context():
             conn.commit()
         if 'zipf_threshold' not in cols:
             conn.execute(sqlalchemy.text("ALTER TABLE word_list ADD COLUMN zipf_threshold FLOAT"))
+            conn.commit()
+        word_cols = [row[1] for row in conn.execute(sqlalchemy.text("PRAGMA table_info(word)"))]
+        if 'mistakes' not in word_cols:
+            conn.execute(sqlalchemy.text("ALTER TABLE word ADD COLUMN mistakes INTEGER DEFAULT 0"))
             conn.commit()
 
 
@@ -418,9 +422,10 @@ def quiz_answer(list_id):
     )
     db.session.add(attempt)
 
-    # If score is 2, mark as mastered
     if result['score'] == 2:
         word.mastered = True
+    else:
+        word.mistakes = (word.mistakes or 0) + 1
 
     db.session.commit()
 
@@ -476,6 +481,8 @@ def quiz_query(list_id):
 
     if result['score'] == 2:
         word.mastered = True
+    else:
+        word.mistakes = (word.mistakes or 0) + 1
 
     db.session.commit()
 

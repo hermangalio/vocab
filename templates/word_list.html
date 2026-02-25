@@ -27,7 +27,7 @@
 <a href="{{ url_for('index') }}" role="button" class="outline">Back to Dashboard</a>
 
 {% if threshold is not none %}
-<details style="margin-top: 0.5rem;">
+<details style="margin-top: 0.5rem; width: fit-content;">
     <summary><small>Threshold: {{ "%.2f" | format(threshold) }} — adjust</small></summary>
     <form method="post" action="{{ url_for('set_threshold', list_id=word_list.id) }}" role="group" style="margin-top: 0.5rem; max-width: 200px;">
         <input type="number" name="threshold" step="0.1" min="0.5" max="7.0" value="{{ '%.1f' | format(threshold) }}" required>
@@ -42,6 +42,7 @@
             <th>#</th>
             <th>Word</th>
             <th>Zipf Score</th>
+            <th>Mistakes</th>
             <th>Status</th>
         </tr>
     </thead>
@@ -51,6 +52,7 @@
             <td>{{ loop.index }}</td>
             <td>{{ word.word }}</td>
             <td>{{ "%.2f" | format(word.zipf_score) }}</td>
+            <td>{{ word.mistakes or 0 }}</td>
             <td>{{ "Mastered" if word.mastered else "" }}</td>
         </tr>
         {% endfor %}

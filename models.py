@@ -27,6 +27,7 @@ class Word(db.Model):
     word = db.Column(db.String(100), nullable=False)
     zipf_score = db.Column(db.Float, nullable=False)
     mastered = db.Column(db.Boolean, default=False)
+    mistakes = db.Column(db.Integer, default=0)
     attempts = db.relationship('QuizAttempt', backref='word_entry', lazy=True, cascade='all, delete-orphan')
 
 
