@@ -28,6 +28,9 @@
         {% endwith %}
         {% block content %}{% endblock %}
     </main>
+    <footer class="container" style="text-align:right; opacity:0.3; font-size:0.7rem; padding-top:1rem;">
+        {{ deploy_time }}
+    </footer>
     {% block scripts %}{% endblock %}
 </body>
 </html>

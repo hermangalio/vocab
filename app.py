@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -25,9 +26,16 @@ def force_https():
 # Access code — set via env var, disabled if not set
 ACCESS_CODE = os.environ.get('ACCESS_CODE')
 
+DEPLOY_TIME = datetime.now(timezone.utc).strftime('%b %d %H:%M UTC')
+
 db.init_app(app)
 
 limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
+
+
+@app.context_processor
+def inject_deploy_time():
+    return {'deploy_time': DEPLOY_TIME}
 
 with app.app_context():
     db.create_all()
