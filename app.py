@@ -31,6 +31,13 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
 
 with app.app_context():
     db.create_all()
+    # Migration: add user_profile_id column if missing (SQLite)
+    with db.engine.connect() as conn:
+        import sqlalchemy
+        cols = [row[1] for row in conn.execute(sqlalchemy.text("PRAGMA table_info(word_list)"))]
+        if 'user_profile_id' not in cols:
+            conn.execute(sqlalchemy.text("ALTER TABLE word_list ADD COLUMN user_profile_id INTEGER REFERENCES user_profile(id)"))
+            conn.commit()
 
 
 # --------------- Vocabulary Percentile Mapping ---------------
@@ -216,7 +223,7 @@ def calibrate_submit():
 @require_profile
 def index():
     profile = get_profile()
-    word_lists = WordList.query.order_by(WordList.created_at.desc()).all()
+    word_lists = WordList.query.filter_by(user_profile_id=profile.id).order_by(WordList.created_at.desc()).all()
     stats = []
     for wl in word_lists:
         total = len(wl.words)
@@ -264,8 +271,9 @@ def upload():
         file.save(tmp.name)
         tmp.close()
 
-        # Create word list record
-        wl = WordList(name=name, status='processing')
+        # Create word list record, owned by current user
+        profile = get_profile()
+        wl = WordList(name=name, status='processing', user_profile_id=profile.id)
         db.session.add(wl)
         db.session.commit()
         wl_id = wl.id
@@ -334,7 +342,7 @@ def status(list_id):
 def word_list(list_id):
     profile = get_profile()
     wl = db.session.get(WordList, list_id)
-    if not wl:
+    if not wl or wl.user_profile_id != profile.id:
         flash('Word list not found.', 'error')
         return redirect(url_for('index'))
     words = Word.query.filter_by(word_list_id=list_id).order_by(Word.zipf_score.asc()).all()
@@ -345,8 +353,9 @@ def word_list(list_id):
 @require_access_code
 @require_profile
 def delete_word_list(list_id):
+    profile = get_profile()
     wl = db.session.get(WordList, list_id)
-    if wl:
+    if wl and wl.user_profile_id == profile.id:
         db.session.delete(wl)
         db.session.commit()
         flash('Word list deleted.', 'success')
@@ -361,7 +370,7 @@ def delete_word_list(list_id):
 def quiz(list_id):
     profile = get_profile()
     wl = db.session.get(WordList, list_id)
-    if not wl:
+    if not wl or wl.user_profile_id != profile.id:
         flash('Word list not found.', 'error')
         return redirect(url_for('index'))
     total = Word.query.filter_by(word_list_id=list_id).filter(Word.zipf_score <= profile.zipf_threshold).count()

@@ -51,7 +51,7 @@
         </div>
 
         <p style="font-size: 1.3rem;">
-            You scored in approximately the <strong>top <span id="top-pct"></span>%</strong> of the population.
+            You scored higher than approximately <strong><span id="top-pct"></span>%</strong> of the population.
         </p>
         <p>
             Zipf threshold: <strong><span id="threshold-val"></span></strong>
@@ -172,7 +172,10 @@
 
         document.getElementById('percentile-label').setAttribute('x', userX);
         document.getElementById('percentile-label').setAttribute('y', padTop + chartH + 16);
-        document.getElementById('percentile-label').textContent = `${Math.round(percentile)}th percentile`;
+        const pRound = Math.round(percentile);
+        const suffix = (pRound % 100 >= 11 && pRound % 100 <= 13) ? 'th'
+            : pRound % 10 === 1 ? 'st' : pRound % 10 === 2 ? 'nd' : pRound % 10 === 3 ? 'rd' : 'th';
+        document.getElementById('percentile-label').textContent = `${pRound}${suffix} percentile`;
     }
 
     async function submitCalibration() {
@@ -186,7 +189,7 @@
         const data = await res.json();
 
         document.getElementById('threshold-val').textContent = data.threshold.toFixed(2);
-        document.getElementById('top-pct').textContent = Math.round(100 - data.percentile);
+        document.getElementById('top-pct').textContent = Math.round(data.percentile);
         drawBellCurve(data.percentile);
         document.getElementById('result').style.display = 'block';
     }
