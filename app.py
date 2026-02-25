@@ -14,6 +14,13 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vocab.db'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+
+@app.before_request
+def force_https():
+    if request.headers.get('X-Forwarded-Proto') == 'http':
+        return redirect(request.url.replace('http://', 'https://'), code=301)
 
 # Access code — set via env var, disabled if not set
 ACCESS_CODE = os.environ.get('ACCESS_CODE')
