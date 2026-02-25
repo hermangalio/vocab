@@ -4,3 +4,5 @@ __pycache__/
 instance/
 *.pyc
 .claude/
+wais resources/
+.DS_Store
