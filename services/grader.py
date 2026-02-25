@@ -27,6 +27,7 @@ def grade_definition(word, user_definition, max_retries=3):
     - 2 Points: Complete understanding. A strong synonym, major use, or definitive classification.
     - 1 Point: Partial understanding. Vague, less precise, or describes only a minor feature instead of the core meaning.
     - 0 Points: Incorrect, totally off-base, or just using the word in a sentence without defining it.
+    - CIRCULAR DEFINITIONS score 0. If the examinee just restates the word or uses the root word to define it (e.g. "unluckily" → "not lucky", "happiness" → "being happy"), that is a 0. The examinee must demonstrate independent understanding without relying on the word's root.
 
     You must reply EXACTLY in this format, with no other text:
     SCORE: [0, 1, or 2]
