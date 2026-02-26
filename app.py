@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 load_dotenv()
@@ -49,6 +50,17 @@ with app.app_context():
         if 'zipf_threshold' not in cols:
             conn.execute(sqlalchemy.text("ALTER TABLE word_list ADD COLUMN zipf_threshold FLOAT"))
             conn.commit()
+        profile_cols = [row[1] for row in conn.execute(sqlalchemy.text("PRAGMA table_info(user_profile)"))]
+        if 'session_token' not in profile_cols:
+            conn.execute(sqlalchemy.text("ALTER TABLE user_profile ADD COLUMN session_token VARCHAR(36)"))
+            conn.commit()
+            # Backfill existing profiles with unique tokens
+            import uuid as _uuid
+            rows = conn.execute(sqlalchemy.text("SELECT id FROM user_profile WHERE session_token IS NULL"))
+            for row in rows:
+                conn.execute(sqlalchemy.text("UPDATE user_profile SET session_token = :token WHERE id = :id"),
+                             {'token': str(_uuid.uuid4()), 'id': row[0]})
+            conn.commit()
         word_cols = [row[1] for row in conn.execute(sqlalchemy.text("PRAGMA table_info(word)"))]
         if 'mistakes' not in word_cols:
             conn.execute(sqlalchemy.text("ALTER TABLE word ADD COLUMN mistakes INTEGER DEFAULT 0"))
@@ -58,10 +70,20 @@ with app.app_context():
 # --------------- Profile Helper ---------------
 
 def get_profile():
-    """Get the current user's profile from session, or None."""
+    """Get the current user's profile from session, or None.
+
+    Verifies session_token to prevent stale cookies from hijacking
+    recycled profile IDs after a database reset.
+    """
     profile_id = session.get('profile_id')
-    if profile_id:
-        return db.session.get(UserProfile, profile_id)
+    token = session.get('session_token')
+    if profile_id and token:
+        profile = db.session.get(UserProfile, profile_id)
+        if profile and profile.session_token == token:
+            return profile
+    # Mismatch or missing token — clear stale session
+    session.pop('profile_id', None)
+    session.pop('session_token', None)
     return None
 
 
@@ -70,10 +92,12 @@ def require_profile(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         if not get_profile():
-            profile = UserProfile()
+            token = str(uuid.uuid4())
+            profile = UserProfile(session_token=token)
             db.session.add(profile)
             db.session.flush()
             session['profile_id'] = profile.id
+            session['session_token'] = token
             db.session.commit()
         return f(*args, **kwargs)
     return decorated
@@ -275,9 +299,12 @@ def run_extraction(app, pdf_path, wl_id, start_page, end_page):
 
 
 @app.route('/processing/<int:list_id>')
+@require_access_code
+@require_profile
 def processing(list_id):
+    profile = get_profile()
     wl = db.session.get(WordList, list_id)
-    if not wl:
+    if not wl or wl.user_profile_id != profile.id:
         flash('Word list not found.', 'error')
         return redirect(url_for('index'))
     if wl.status == 'done':
@@ -289,9 +316,12 @@ def processing(list_id):
 
 
 @app.route('/status/<int:list_id>')
+@require_access_code
+@require_profile
 def status(list_id):
+    profile = get_profile()
     wl = db.session.get(WordList, list_id)
-    if not wl:
+    if not wl or wl.user_profile_id != profile.id:
         return jsonify({'status': 'error'})
     return jsonify({'status': wl.status})
 
@@ -360,11 +390,13 @@ def quiz(list_id):
 
 
 @app.route('/quiz/<int:list_id>/next')
+@require_access_code
 @require_profile
 def quiz_next(list_id):
     """Get the next unmastered word within the list's threshold (random)."""
+    profile = get_profile()
     wl = db.session.get(WordList, list_id)
-    if not wl or wl.zipf_threshold is None:
+    if not wl or wl.user_profile_id != profile.id or wl.zipf_threshold is None:
         return jsonify({'done': True})
     word = (Word.query
             .filter_by(word_list_id=list_id, mastered=False)
@@ -392,6 +424,11 @@ def quiz_next(list_id):
 def quiz_answer(list_id):
     """Grade a user's definition."""
     from services.grader import grade_definition
+
+    profile = get_profile()
+    wl = db.session.get(WordList, list_id)
+    if not wl or wl.user_profile_id != profile.id:
+        return jsonify({'error': 'Not found'}), 404
 
     data = request.get_json()
     word_id = data.get('word_id')
@@ -447,6 +484,11 @@ def quiz_answer(list_id):
 def quiz_query(list_id):
     """Re-grade after elaboration (WAIS-5 query rule)."""
     from services.grader import grade_definition
+
+    profile = get_profile()
+    wl = db.session.get(WordList, list_id)
+    if not wl or wl.user_profile_id != profile.id:
+        return jsonify({'error': 'Not found'}), 404
 
     data = request.get_json()
     word_id = data.get('word_id')
