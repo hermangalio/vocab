@@ -61,6 +61,10 @@ with app.app_context():
                 conn.execute(sqlalchemy.text("UPDATE user_profile SET session_token = :token WHERE id = :id"),
                              {'token': str(_uuid.uuid4()), 'id': row[0]})
             conn.commit()
+        wl_cols = [row[1] for row in conn.execute(sqlalchemy.text("PRAGMA table_info(word_list)"))]
+        if 'progress' not in wl_cols:
+            conn.execute(sqlalchemy.text("ALTER TABLE word_list ADD COLUMN progress INTEGER DEFAULT 0"))
+            conn.commit()
         word_cols = [row[1] for row in conn.execute(sqlalchemy.text("PRAGMA table_info(word)"))]
         if 'mistakes' not in word_cols:
             conn.execute(sqlalchemy.text("ALTER TABLE word ADD COLUMN mistakes INTEGER DEFAULT 0"))
@@ -131,17 +135,20 @@ def login():
 # --------------- Per-List Calibration ---------------
 
 def pick_calibration_words(word_list, count=15):
-    """Pick words from a word list, sorted common → rare, denser among rare words.
+    """Pick calibration words using a power curve skewed heavily toward rare words.
 
-    Uses a square-root curve so the first few picks skip quickly through common
-    words while the later picks sample more densely among rare words — where the
-    interesting differentiation happens.
+    Words are sorted common→rare, then sampled at indices:
+        index = (n-1) * (i / (count-1)) ^ p
+
+    p=0.15 gives roughly: 1 common word, 10 mid-rare, 4 from rarest 5%.
+    (The original p=0.5 sqrt curve was too gentle.)
     """
     words = sorted(word_list.words, key=lambda w: w.zipf_score, reverse=True)
     if len(words) <= count:
         return [{'word': w.word, 'zipf': w.zipf_score} for w in words]
     n = len(words) - 1
-    indices = [round(n * (i / (count - 1)) ** 0.5) for i in range(count)]
+    p = 0.15
+    indices = sorted(set(round(n * (i / (count - 1)) ** p) for i in range(count)))
     return [{'word': words[i].word, 'zipf': words[i].zipf_score} for i in indices]
 
 
@@ -278,16 +285,22 @@ def upload():
 
 def run_extraction(app, pdf_path, wl_id, start_page, end_page):
     """Run PDF extraction in a background thread."""
-    from services.extractor import extract_words_from_pdf
-
     with app.app_context():
         try:
-            word_scores = extract_words_from_pdf(pdf_path, start_page, end_page)
+            from services.extractor import extract_words_from_pdf
+            def update_progress(pct):
+                wl = db.session.get(WordList, wl_id)
+                wl.progress = pct
+                db.session.commit()
+
+            word_scores = extract_words_from_pdf(pdf_path, start_page, end_page,
+                                                 on_progress=update_progress)
 
             wl = db.session.get(WordList, wl_id)
             for word, score in word_scores:
                 wl.words.append(Word(word=word, zipf_score=score))
             wl.status = 'done'
+            wl.progress = 100
             db.session.commit()
         except Exception as e:
             wl = db.session.get(WordList, wl_id)
@@ -320,10 +333,11 @@ def processing(list_id):
 @require_profile
 def status(list_id):
     profile = get_profile()
+    db.session.expire_all()  # ensure we read fresh data from the background thread
     wl = db.session.get(WordList, list_id)
     if not wl or wl.user_profile_id != profile.id:
         return jsonify({'status': 'error'})
-    return jsonify({'status': wl.status})
+    return jsonify({'status': wl.status, 'progress': wl.progress or 0})
 
 
 # --------------- Word List View ---------------

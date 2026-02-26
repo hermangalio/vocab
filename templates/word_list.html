@@ -29,8 +29,8 @@
 {% if threshold is not none %}
 <details style="margin-top: 0.5rem; width: fit-content;">
     <summary><small>Threshold: {{ "%.2f" | format(threshold) }} — adjust</small></summary>
-    <form method="post" action="{{ url_for('set_threshold', list_id=word_list.id) }}" role="group" style="margin-top: 0.5rem; max-width: 200px;">
-        <input type="number" name="threshold" step="0.1" min="0.5" max="7.0" value="{{ '%.1f' | format(threshold) }}" required>
+    <form method="post" action="{{ url_for('set_threshold', list_id=word_list.id) }}" role="group" style="margin-top: 0.5rem; max-width: 280px;">
+        <input type="text" name="threshold" inputmode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" value="{{ '%.2f' | format(threshold) }}" style="min-width: 5rem;" required>
         <button type="submit" class="outline">Set</button>
     </form>
 </details>

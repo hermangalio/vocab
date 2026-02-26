@@ -3,31 +3,54 @@
 
 {% block content %}
 <article style="text-align: center; padding: 3rem;">
-    <div class="spinner"></div>
     <h2>Extracting Vocabulary</h2>
     <p>Processing <strong>{{ word_list.name }}</strong>...</p>
-    <p><small>This may take a minute. The page will redirect automatically when done.</small></p>
+    <progress id="progress-bar" value="0" max="100"></progress>
+    <p id="progress-label" style="margin-top: 0.5rem;"><small>Starting...</small></p>
 </article>
 {% endblock %}
 
 {% block scripts %}
 <script>
     const listId = {{ word_list.id }};
+    const bar = document.getElementById('progress-bar');
+    const label = document.getElementById('progress-label');
+
+    const steps = [
+        [0,  'Starting...'],
+        [10, 'Reading PDF...'],
+        [15, 'Analyzing text...'],
+        [75, 'Filtering words...'],
+        [90, 'Ranking vocabulary...'],
+    ];
+
+    function stepLabel(pct) {
+        let text = steps[0][1];
+        for (const [threshold, msg] of steps) {
+            if (pct >= threshold) text = msg;
+        }
+        return text;
+    }
 
     async function checkStatus() {
         try {
             const res = await fetch(`/status/${listId}`);
             const data = await res.json();
             if (data.status === 'done') {
+                bar.value = 100;
+                label.innerHTML = '<small>Done!</small>';
                 window.location.href = `/words/${listId}/calibrate`;
             } else if (data.status === 'error') {
                 window.location.href = '/';
+            } else {
+                bar.value = data.progress;
+                label.innerHTML = `<small>${stepLabel(data.progress)} ${data.progress}%</small>`;
             }
         } catch (e) {
             // ignore fetch errors, retry
         }
     }
 
-    setInterval(checkStatus, 2000);
+    setInterval(checkStatus, 1500);
 </script>
 {% endblock %}

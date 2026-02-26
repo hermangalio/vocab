@@ -82,7 +82,8 @@
     <!-- Loading -->
     <div id="loading" style="display:none; text-align:center; padding:2rem;">
         <div class="spinner"></div>
-        <p>Thinking...</p>
+        <p id="loading-text">Thinking...</p>
+        <p id="loading-elapsed" style="margin-top:0; opacity:0.5;"><small></small></p>
     </div>
 </div>
 {% endblock %}
@@ -102,6 +103,36 @@
     const apiError = document.getElementById('api-error');
     const allDone = document.getElementById('all-done');
     const loading = document.getElementById('loading');
+    const loadingText = document.getElementById('loading-text');
+    const loadingElapsed = document.getElementById('loading-elapsed');
+
+    const thinkingSteps = [
+        [0,  'Thinking...'],
+        [2,  'Reading your definition...'],
+        [4,  'Grading...'],
+        [7,  'Almost done...'],
+    ];
+    let thinkingTimer = null;
+    let thinkingStart = 0;
+
+    function startThinking() {
+        thinkingStart = Date.now();
+        loadingText.textContent = thinkingSteps[0][1];
+        loadingElapsed.querySelector('small').textContent = '';
+        thinkingTimer = setInterval(() => {
+            const elapsed = (Date.now() - thinkingStart) / 1000;
+            let text = thinkingSteps[0][1];
+            for (const [sec, msg] of thinkingSteps) {
+                if (elapsed >= sec) text = msg;
+            }
+            loadingText.textContent = text;
+            loadingElapsed.querySelector('small').textContent = `${Math.floor(elapsed)}s`;
+        }, 500);
+    }
+
+    function stopThinking() {
+        if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null; }
+    }
 
     function hideAll() {
         wordPrompt.style.display = 'none';
@@ -110,11 +141,13 @@
         apiError.style.display = 'none';
         allDone.style.display = 'none';
         loading.style.display = 'none';
+        stopThinking();
     }
 
     async function loadNextWord() {
         hideAll();
         loading.style.display = 'block';
+        startThinking();
 
         const res = await fetch(`/quiz/${listId}/next`);
         const data = await res.json();
@@ -175,6 +208,7 @@
         originalDefinition = def;
         hideAll();
         loading.style.display = 'block';
+        startThinking();
 
         const res = await fetch(`/quiz/${listId}/answer`, {
             method: 'POST',
@@ -206,6 +240,7 @@
 
         hideAll();
         loading.style.display = 'block';
+        startThinking();
 
         const res = await fetch(`/quiz/${listId}/query`, {
             method: 'POST',

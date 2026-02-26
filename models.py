@@ -18,6 +18,7 @@ class WordList(db.Model):
     name = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='processing')  # processing, done, error
+    progress = db.Column(db.Integer, default=0)  # 0-100
     zipf_threshold = db.Column(db.Float, nullable=True)  # set during per-list calibration
     owner = db.relationship('UserProfile', backref='word_lists')
     words = db.relationship('Word', backref='word_list', lazy=True, cascade='all, delete-orphan')
