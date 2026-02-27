@@ -7,4 +7,5 @@ spacy
 wordfreq
 pyspellchecker
 google-genai
+openai
 gunicorn

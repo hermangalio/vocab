@@ -135,15 +135,18 @@ def login():
 # --------------- Per-List Calibration ---------------
 
 def pick_calibration_words(word_list, count=15):
-    """Pick calibration words using a power curve skewed heavily toward rare words.
+    """Pick calibration words using a power curve skewed toward rare words.
 
-    Words are sorted common→rare, then sampled at indices:
-        index = (n-1) * (i / (count-1)) ^ p
-
-    p=0.15 gives roughly: 1 common word, 10 mid-rare, 4 from rarest 5%.
-    (The original p=0.5 sqrt curve was too gentle.)
+    Words are sorted common→rare, then the easiest 25% are skipped.
+    The remaining 75% are sampled with a power curve (p=0.15) that
+    clusters picks toward the rare end.
     """
     words = sorted(word_list.words, key=lambda w: w.zipf_score, reverse=True)
+    # Skip ultra-common function words (the, and, etc.) that aren't useful to test
+    words = [w for w in words if w.zipf_score <= 7.0]
+    # Start at the 25% mark — the easiest quarter isn't useful for calibration
+    start = len(words) // 4
+    words = words[start:]
     if len(words) <= count:
         return [{'word': w.word, 'zipf': w.zipf_score} for w in words]
     n = len(words) - 1
@@ -469,7 +472,6 @@ def quiz_answer(list_id):
         reason=result['reason'],
         official_definition=result['definition'],
         synonyms=result['synonyms'],
-        example=result['example'],
     )
     db.session.add(attempt)
 
@@ -485,7 +487,9 @@ def quiz_answer(list_id):
         'reason': result['reason'],
         'definition': result['definition'],
         'synonyms': result['synonyms'],
-        'example': result['example'],
+        'etymology': result['etymology'],
+        'joke': result['joke'],
+        'reflect': result['reflect'],
         'needs_query': result['score'] == 1,
         'mastered': word.mastered,
     })
@@ -531,7 +535,6 @@ def quiz_query(list_id):
         reason=result['reason'],
         official_definition=result['definition'],
         synonyms=result['synonyms'],
-        example=result['example'],
     )
     db.session.add(attempt)
 
@@ -547,7 +550,9 @@ def quiz_query(list_id):
         'reason': result['reason'],
         'definition': result['definition'],
         'synonyms': result['synonyms'],
-        'example': result['example'],
+        'etymology': result['etymology'],
+        'joke': result['joke'],
+        'reflect': result['reflect'],
         'mastered': word.mastered,
     })
 

@@ -51,9 +51,11 @@ def extract_words_from_pdf(pdf_path, start_page=None, end_page=None, language='e
     total_pages = len(pages)
     for i, doc in enumerate(nlp.pipe(pages, batch_size=5)):
         for token in doc:
-            if token.is_alpha and token.pos_ != "PROPN":
+            if (token.is_alpha
+                and token.pos_ not in ("PROPN", "DET", "ADP", "PRON",
+                                       "CCONJ", "SCONJ", "AUX", "PART")):
                 lemma = token.lemma_.lower()
-                if len(lemma) >= 3 or lemma in ['a', 'i']:
+                if len(lemma) >= 3:
                     cleaned_words.append(lemma)
         report(10 + round(65 * (i + 1) / max(total_pages, 1)))
 
