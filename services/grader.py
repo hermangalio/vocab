@@ -33,7 +33,7 @@ def _generate_joke(word):
             model="grok-4-1-fast",
             messages=[{
                 "role": "user",
-                "content": f'Write a one or two sentence racist OR sexist OR antisemitic OR taboo OR generally offensive joke using the word "{word}". Reply with ONLY the joke, nothing else.'
+                "content": f'Write a one or two sentence racist OR sexist OR antisemitic OR taboo OR generally offensive OR blackpill/redpill joke using the word "{word}". Reply with ONLY the joke, nothing else.'
             }],
         )
         return response.choices[0].message.content.strip()
