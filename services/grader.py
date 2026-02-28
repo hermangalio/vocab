@@ -1,12 +1,9 @@
 import os
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor
 from google import genai
-from openai import OpenAI
 
 _client = None
-_xai_client = None
 
 
 def _get_client():
@@ -16,35 +13,10 @@ def _get_client():
     return _client
 
 
-def _get_xai_client():
-    global _xai_client
-    if _xai_client is None:
-        _xai_client = OpenAI(
-            api_key=os.environ.get('XAI_API_KEY'),
-            base_url="https://api.x.ai/v1",
-        )
-    return _xai_client
-
-
-def _generate_joke(word):
-    """Generate a dark joke using Grok."""
-    try:
-        response = _get_xai_client().chat.completions.create(
-            model="grok-4-1-fast",
-            messages=[{
-                "role": "user",
-                "content": f'Write a one or two sentence racist OR sexist OR antisemitic OR taboo OR generally offensive OR blackpill/redpill joke using the word "{word}". Reply with ONLY the joke, nothing else.'
-            }],
-        )
-        return response.choices[0].message.content.strip()
-    except Exception:
-        return "Joke not provided."
-
-
 def grade_definition(word, user_definition, max_retries=3):
     """Grade a user's definition using Gemini.
 
-    Returns a dict with: score, reason, definition, synonyms, etymology, joke, reflect.
+    Returns a dict with: score, reason, definition, synonyms, etymology, reflect.
     """
     prompt = f"""
     You are an expert psychometrist administering a WAIS-5 style vocabulary test.
@@ -66,37 +38,29 @@ def grade_definition(word, user_definition, max_retries=3):
     REFLECT: [One sentence max. Start with "Think of a time..." and prompt the reader to recall a specific personal moment where this word applies. Be vivid, not generic.]
     """
 
-    # Fire Grok joke call in parallel with Gemini grading
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        joke_future = executor.submit(_generate_joke, word)
-
-        response = None
-        for attempt in range(max_retries):
-            try:
-                response = _get_client().models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt,
-                    config={'thinking_config': {'thinking_budget': 1024}},
-                )
-                break
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    delay = 2 ** attempt
-                    time.sleep(delay)
-                else:
-                    joke_future.cancel()
-                    return {
-                        'score': None,
-                        'api_error': True,
-                        'reason': "Herman's API ran out — go complain to him.",
-                        'definition': 'N/A',
-                        'synonyms': 'N/A',
-                        'etymology': 'N/A',
-                        'joke': 'N/A',
-                        'reflect': 'N/A',
-                    }
-
-        joke = joke_future.result(timeout=15)
+    response = None
+    for attempt in range(max_retries):
+        try:
+            response = _get_client().models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+                config={'thinking_config': {'thinking_budget': 1024}},
+            )
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                delay = 2 ** attempt
+                time.sleep(delay)
+            else:
+                return {
+                    'score': None,
+                    'api_error': True,
+                    'reason': "Herman's API ran out — go complain to him.",
+                    'definition': 'N/A',
+                    'synonyms': 'N/A',
+                    'etymology': 'N/A',
+                    'reflect': 'N/A',
+                }
 
     # Parse the response
     score = 0
@@ -130,6 +94,5 @@ def grade_definition(word, user_definition, max_retries=3):
         'definition': definition,
         'synonyms': synonyms,
         'etymology': etymology,
-        'joke': joke,
         'reflect': reflect,
     }

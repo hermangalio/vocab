@@ -488,7 +488,6 @@ def quiz_answer(list_id):
         'definition': result['definition'],
         'synonyms': result['synonyms'],
         'etymology': result['etymology'],
-        'joke': result['joke'],
         'reflect': result['reflect'],
         'needs_query': result['score'] == 1,
         'mastered': word.mastered,
@@ -551,7 +550,6 @@ def quiz_query(list_id):
         'definition': result['definition'],
         'synonyms': result['synonyms'],
         'etymology': result['etymology'],
-        'joke': result['joke'],
         'reflect': result['reflect'],
         'mastered': word.mastered,
     })
