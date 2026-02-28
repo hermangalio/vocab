@@ -44,7 +44,7 @@ def grade_definition(word, user_definition, max_retries=3):
             response = _get_client().models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt,
-                config={'thinking_config': {'thinking_budget': 1024}},
+                config={'thinking_config': {'thinking_budget': 0}},
             )
             break
         except Exception as e:
