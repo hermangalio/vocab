@@ -57,6 +57,7 @@
             <p><strong>Official Definition:</strong> <span id="result-definition"></span></p>
             <p><strong>Synonyms:</strong> <span id="result-synonyms"></span></p>
             <p><strong>Etymology:</strong> <span id="result-etymology"></span></p>
+            <p><strong>Example:</strong> <em id="result-example"></em></p>
             <p><strong>Personal Connection:</strong> <em id="result-reflect"></em></p>
             <footer>
                 <button id="next-btn">Next Word</button>
@@ -184,6 +185,7 @@
         document.getElementById('result-definition').textContent = data.definition;
         document.getElementById('result-synonyms').textContent = data.synonyms;
         document.getElementById('result-etymology').textContent = data.etymology;
+        document.getElementById('result-example').textContent = data.example;
         document.getElementById('result-reflect').textContent = data.reflect;
 
         const badge = document.getElementById('mastery-badge');

@@ -36,6 +36,7 @@ def grade_definition(word, user_definition, max_retries=3):
     SYNONYMS: [Provide 2 to 3 synonyms for the word, separated by commas]
     ETYMOLOGY: [Briefly explain the word's origin — the language it comes from, its root words, and how its meaning evolved. Keep it to 1-2 sentences.]
     REFLECT: [One sentence max. Start with "Think of a time..." and prompt the reader to recall a specific personal moment where this word applies. Be vivid, not generic.]
+    EXAMPLE: [A natural example sentence using the word in context. Make it vivid and memorable, not textbook-dry.]
     """
 
     response = None
@@ -60,6 +61,7 @@ def grade_definition(word, user_definition, max_retries=3):
                     'synonyms': 'N/A',
                     'etymology': 'N/A',
                     'reflect': 'N/A',
+                    'example': 'N/A',
                 }
 
     # Parse the response
@@ -69,6 +71,7 @@ def grade_definition(word, user_definition, max_retries=3):
     synonyms = "Synonyms not provided."
     etymology = "Etymology not provided."
     reflect = "Reflection not provided."
+    example = "Example not provided."
 
     for line in response.text.strip().split('\n'):
         line_clean = line.strip()
@@ -87,6 +90,8 @@ def grade_definition(word, user_definition, max_retries=3):
             etymology = line_clean.split(":", 1)[1].strip()
         elif line_clean.upper().startswith("REFLECT:"):
             reflect = line_clean.split(":", 1)[1].strip()
+        elif line_clean.upper().startswith("EXAMPLE:"):
+            example = line_clean.split(":", 1)[1].strip()
 
     return {
         'score': score,
@@ -95,4 +100,5 @@ def grade_definition(word, user_definition, max_retries=3):
         'synonyms': synonyms,
         'etymology': etymology,
         'reflect': reflect,
+        'example': example,
     }
